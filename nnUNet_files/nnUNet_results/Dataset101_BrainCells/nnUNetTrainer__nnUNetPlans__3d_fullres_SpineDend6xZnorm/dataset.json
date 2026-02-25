@@ -1,0 +1,13 @@
+{
+    "channel_names": {
+        "0": "zscore"
+    },
+    "labels": {
+        "background": 0,
+        "spines": 1,
+        "dendrites": 2
+    },
+    "numTraining": 68,
+    "file_ending": ".nii.gz",
+    "overwrite_image_reader_writer": "NibabelIO"
+}

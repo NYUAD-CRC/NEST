@@ -43,9 +43,6 @@ def data_read_resize_ims(raw_data_path, resize_factor, path_write):
     print('The shape of the input data is {} and dtype {}'.format(shapefile, arr.dtype))
     if arr.dtype!=np.uint8:
         arr = arr.astype(np.uint8)
-        # arr[arr>255] = 255
-        # arr = arr.astype(np.uint8)
-        print('Converted input data to dtype {}'.format(arr.dtype))
     path_write_inp =os.path.join(path_write, 'input_datafiles')
     os.makedirs(path_write_inp,exist_ok=True)
     cv2.imwrite(os.path.join(path_write_inp, fname.replace('.ims', '_maxproj_inputdata.jpg')), np.max(arr, axis=0))
@@ -86,9 +83,6 @@ def data_read_resize_tiff(raw_data_path, resize_factor, path_write):
     print('The shape of the input data is {} and dtype {}'.format(arr.shape, arr.dtype))
     if arr.dtype!=np.uint8:
         arr = arr.astype(np.uint8)
-        # arr[arr>255] = 255
-        # arr = arr.astype(np.uint8)
-        print('Converted input data to dtype {}'.format(arr.dtype))
     path_write_inp =os.path.join(path_write, 'input_datafiles')
     os.makedirs(path_write,exist_ok=True)
     if fname.endswith('.tif'):
@@ -115,7 +109,16 @@ def data_read_resize_tiff(raw_data_path, resize_factor, path_write):
 
 
 
-def getK_cc3dscipy(img_3d,k, connectivity=26):
+def getK_cc3dscipy(img_3d,k, connectivity=26, NeuronSizeVoxel=0.35e6):
+    
+    """
+    Finds connected components in the 3D binary mask and returns the top k connected components that are atleast half the size of the largest component. 
+    Returns each component and combined mask of top k components as a list of numpy arrays. The combined mask is the last element in the list.
+    img_3d: 3D binary mask (numpy array)
+    k: number of top connected components to return
+    connectivity: 6 or 26 (default 26)
+    NeuronSizeVoxel: minimum size of neuron in voxels, if the component size is greater than this, it will be included in the final mask even if its relative size is less than 0.5 the maximum component size.
+    """
     
     if connectivity==26:
         structure = ndimage.generate_binary_structure(3, 2)
@@ -132,16 +135,14 @@ def getK_cc3dscipy(img_3d,k, connectivity=26):
     top_labels = [label for label, size in label_size_pairs[:k]]
     top_size = [(np.divide(size, label_size_pairs[0][1]), size) for label, size in label_size_pairs[:k]]
     print(f"Top {k} components: Labels {top_labels}, RelativeSize: {top_size}")
-    # top_components_mask = np.isin(labeled_array, top_labels)
     
-    N = len(top_labels)
     container = np.zeros(img_3d.shape, dtype=np.uint8)
     all_imgs = []
     for seg_id,(size,size_pix) in dict(zip(top_labels, top_size)).items():
         extracted_image = labeled_array * (labeled_array == seg_id)
         extracted_image = extracted_image.astype(np.uint8)
         all_imgs.append((extracted_image>0).astype(bool).astype(np.uint8)*255)
-        if size>=0.5 or size_pix>0.35e6:
+        if size>=0.5 or size_pix>NeuronSizeVoxel:
             container = cv2.bitwise_or(container, extracted_image)
     container = (container>0).astype(bool).astype(np.uint8)*255
     all_imgs.append(container)
@@ -150,10 +151,6 @@ def getK_cc3dscipy(img_3d,k, connectivity=26):
 
 def project_modelResultsOnInput(model_mask, filename, file_3d, path_output, obj_id, fillbackgrd=True):
     
-    # if file_3d.dtype!='uint8':
-    #     file_3d[file_3d>255]=255
-        # file_3d = file_3d.astype(np.uint8)
-    # cv2.imwrite('./temp.jpg', np.max(file_3d, axis=0))
     inp_dtype = file_3d.dtype
     if file_3d.dtype==np.uint8:
         inp_dtype = np.uint8
@@ -180,16 +177,6 @@ def project_modelResultsOnInput(model_mask, filename, file_3d, path_output, obj_
     if fillbackgrd.lower()=='true':
         for zidx in range(result.shape[0]):
             img = result[zidx]
-            # hist = cv2.calcHist([img], [0], None, [256], [0, 256])
-            # hist = {item[0]:idx for idx,item in enumerate(hist)}
-            # hist = sorted(hist.items(), reverse=True)
-            # for key, value in hist:
-            #     if value<10:
-            #         bkgrd=None
-            #         continue
-            #     if value>90 and value<170:
-            #         bkgrd = value
-            #         break
             hist = cv2.calcHist([img], [0], model_mask[zidx], [65536], [0, 65536])
             max_val = int(np.argmax(hist))
             if max_val<10:
@@ -198,11 +185,6 @@ def project_modelResultsOnInput(model_mask, filename, file_3d, path_output, obj_
                 bkgrd=max_val
             
             if not bkgrd:
-                # hist = cv2.calcHist([file_3d[zidx]], [0], None, [256], [0, 256])
-                # hist = {item[0]:idx for idx,item in enumerate(hist)}
-                # hist = sorted(hist.items(), reverse=True)
-                # bkgrd = hist[0][1]
-                
                 hist = cv2.calcHist([file_3d[zidx]], [0], None, [65536], [0, 65536])
                 bkgrd = int(np.argmax(hist))
             img = np.where(img<15, bkgrd, img)
@@ -268,9 +250,6 @@ def nnunet_postprocessing(results_read_path, raw_read_path, backgroundFilling, w
         pred_mask = pred_mask.transpose(2,0,1)
         
         cv2.imwrite(os.path.join(os.path.dirname(results_write_path),fname.split('.nii.gz')[0]+'_rawmodelpred.jpg'), np.max(pred_mask, axis=0)*255)
-        
-        # pred_mask = cc3d.dust(pred_mask, threshold=200, connectivity=6, in_place=False)
-        # pred_mask = pred_mask.astype(np.uint8)
 
         pred_mask = (ndimage.binary_dilation(pred_mask, structure=ball(radius=dilation_factor)))*255
         all_components2_skimg = getK_cc3dscipy(pred_mask, k=5)
@@ -278,25 +257,16 @@ def nnunet_postprocessing(results_read_path, raw_read_path, backgroundFilling, w
         arr = all_components2_skimg[-1]
         if erosion_factor:
             erosion_factor = int(erosion_factor)
-            # arr = (ndimage.binary_erosion(arr, structure=ball(radius=erosion_factor)))*255
         
         arr = arr.astype(np.uint8)
         arr = arr.transpose(1,2,0)
         
-        # arr = nib.Nifti1Image(arr, np.eye(4))  # Save axis for data (just identity)
-        # arr.header.get_xyzt_units()
-        # comp_path_img_dump = os.path.join(results_write_path, fname.replace('.nii.gz', '_postprocessed.nii.gz'))
-        # arr.to_filename(comp_path_img_dump)
-        
-        # arr = nib.load(os.path.join(results_write_path, fname.replace('.nii.gz', '_postprocessed.nii.gz')))
-        # arr = arr.get_fdata()
         arr = arr.transpose(2,0,1)
         arr = arr.astype(np.uint8)
         if watershedpostprocess.lower()=='true':
             arr = watershed_segmentation(arr)
             cv2.imwrite(os.path.join(results_write_path,fname.split('.nii.gz')[0]+'_cc3d_vs_watershed_mask.jpg'), np.hstack((np.max(all_components2_skimg[-1], axis=0), np.max((arr>0).astype(np.uint8)*255, axis=0))))
             
-        # del pred_mask, all_components2_skimg
         obj_ids = np.unique(arr)
         obj_ids = obj_ids[obj_ids!=0] #remove background
         print('Total objects found are', len(obj_ids), obj_ids)
@@ -312,14 +282,11 @@ def nnunet_postprocessing(results_read_path, raw_read_path, backgroundFilling, w
         for objid in obj_ids:
             arr_id = (arr==objid).astype(np.uint8)*255
             arr_id = arr_id.astype(np.uint8)
-            # import pdb;pdb.set_trace()
             if erosion_factor:
                 arr_id = ((ndimage.binary_erosion(arr_id, structure=ball(radius=erosion_factor)))*255).astype(np.uint8)
             if multi_objects:
                 projected_filename, _ = project_modelResultsOnInput(arr_id, fname, file_3d, results_write_path, counter+1, backgroundFilling)
                 all_projected_fnames.append(projected_filename)
-            # else:
-            #     projected_filename, _ = project_modelResultsOnInput(final_mask, fname, file_3d, results_write_path, 'final', backgroundFilling)
             if counter ==0:
                 final_mask = arr_id
             else:
@@ -350,15 +317,8 @@ def watershed_segmentation(arr, dendritic_neuron_area = 0.35e6):
 
     distance = distance_transform_edt(arr)
     
-    print('Maximum distance and half is {} {}'.format(np.max(distance), np.max(distance)/2))
-    
     minima = h_maxima(distance, np.max(distance)/2) #9
     markers = label(minima)
-    # distance = gaussian_filter(distance, sigma=2)
-    # max_dist = np.max(distance)/2
-    # markers = label(distance>max_dist)
-    
-    # peak_coords = peak_local_max(distance, labels=arr, footprint=np.ones((8, 32, 32)), min_distance=100, exclude_border=False,)
 
     labels = watershed(-distance, markers, mask=arr)
     labels = labels.astype(np.uint8)
@@ -372,34 +332,17 @@ def watershed_segmentation(arr, dendritic_neuron_area = 0.35e6):
         max_area = max(all_areas)
     except:
         print('Unexpected behaviour in watershed segmentation, no object area found. Input sample has no neuron or the threshold parameters are incorrect. Aborting watershed.')
+        return (labels>0).astype(np.uint8)*255
         
-    
     all_areas = [np.round(np.divide(prop.area, max_area),2) for prop in props]
     if len(all_areas)>2:
         ids_exclude = [prop.label for prop in props if prop.area<dendritic_neuron_area and np.round(np.divide(prop.area, max_area),2)<0.5]
     else:
         ids_exclude = []
-    # import pdb;pdb.set_trace()
-    # for index, prop in enumerate(props):
-        # if prop.area < 500:  # Threshold small components (tune 500)
-        # if all_areas[index]<0.02:
-        # if all_areas[index]<0.02:
-        #     coords = prop.coords
-        #     for coord in coords:
-        #         z, y, x = coord
-        #         # Find the nearest large label around
-        #         neighbors = labels[max(z-1,0):z+2, max(y-1,0):y+2, max(x-1,0):x+2]
-        #         neighbors = neighbors[neighbors != prop.label]
-        #         if len(neighbors) > 0:
-        #             labels[z,y,x] = np.bincount(neighbors.flatten()).argmax()
 
-    print('Num of components found {}'.format(np.unique(labels, return_counts=True)))
     if len(ids_exclude)>0:
         for objid in ids_exclude:
             labels = np.where(labels==objid, 0, labels)
-    # labels_all = (labels>0).astype(bool).astype(np.uint8)*255
-    # imwrite(filename.replace('.nii.gz', '_wshed_segmented_mask.tiff'), labels)
-    # cv2.imwrite(filename.replace('.nii.gz', 'allobjs_wshed.jpg'), np.max(labels_all, axis=0))  
     return labels
 
 def analyze_spines(binary, source="unknown", visualize=True, percentile_range=(5, 95), voxel_size=1.0, write_path=None):
@@ -548,39 +491,6 @@ def spineMorphologyAnalysis(folder_path, voxel_size, visualize_histograms=True):
     df_new.to_csv(output_csv, index=False)
     print(f'Saved summary to {output_csv}')
     
-
-
-# def finalcleanDeepD3(read_deepd3path, final_maskpath):
-#     """
-#     Reads the final mask and applies it on deepd3 predictions to remove artefacts. Everything outside mask is being made 0
-#     """
-#     print('Cleaning DeepD3 predictions using the nnUNET mask.')
-    
-#     if not final_maskpath.endswith('.nii.gz'):
-#         raise Exception('Invalid file path for mask (expecting nii.gz file) {}'.format(final_maskpath))
-#     else:
-#         filename = os.path.basename(final_maskpath)
-#         filename = filename.split('_postprocessed')[0]
-#         arr = nib.load(final_maskpath)
-#         arr = arr.get_fdata()
-#         arr = arr.transpose(2,0,1)
-#         arr = arr.astype(np.uint8)
-#         maskz, masky, maskx = arr.shape
-#     for fname in os.listdir(read_deepd3path):
-#         if not fname.endswith('.tiff'):continue
-#         if not filename in fname.split('_projected')[0]:continue
-        
-#         deepd3file = imread(os.path.join(read_deepd3path, fname))
-#         deepd3z, deepd3y, deepd3x = deepd3file.shape
-        
-#         if not (deepd3z==maskz and deepd3y==masky and deepd3x==maskx):
-#             print('The mask shape {} doesnot match deepd3 shape {}. Resizing'.format(arr.shape, deepd3file.shape))
-#             arr = cv2.resize(arr.transpose(1,2,0), dsize=(deepd3file.shape[2], deepd3file.shape[1])).transpose(2,0,1)
-        
-#         for zidx in range(deepd3z):
-#             deepd3file[zidx] = cv2.bitwise_and(deepd3file[zidx], deepd3file[zidx], mask=arr[zidx])
-#         imwrite(os.path.join(read_deepd3path, fname), deepd3file)
-#         cv2.imwrite(os.path.join(read_deepd3path, fname.replace('.tiff', '.jpg')), np.max(deepd3file,axis=0))
         
         
 

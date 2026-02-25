@@ -1,0 +1,4 @@
+NEST_output/
+test_files/
+nnUNet_files/nnUNet_results/Dataset101_BrainCells/nnUNetTrainer__nnUNetPlans__3d_fullres_0.125scale/fold_all/checkpoint_final.pth
+nnUNet_files/nnUNet_results/Dataset101_BrainCells/nnUNetTrainer__nnUNetPlans__3d_fullres_SpineDend6xZnorm/fold_all/checkpoint_final.pth

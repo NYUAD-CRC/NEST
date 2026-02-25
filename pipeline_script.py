@@ -45,7 +45,6 @@ if __name__=='__main__':
     elif args.input_file.endswith('.ims'):
         foldername = filename.split('.ims')[0]
         resized_file_path = data_read_resize_ims(args.input_file, factor, args.output_path)
-        # resized_file_path = '/home/dhanu/dhanu_work/files/end2end_pipeline/NEST_output/input_datafiles/nnunet_input/WT-1_10X_N_5_100X_2025-09-10_FusionStitcher_0000.nii.gz'
     else:
         raise Exception('Invalid input file path {}'.format(args.input_file))
     
@@ -54,14 +53,5 @@ if __name__=='__main__':
     nnunetpostprocessedfilename, final_mask_path = nnunet_postprocessing(write_path_nnunet, args.input_file, args.backgroundFilling, args.typeofPostprocessing, args.dilation_factor, args.erosion_factor)
     
     
-    # if (not args.deepd3_model or not args.deepd3_model.endswith('.h5')):
-    #     print('No correct deepd3 model file path passed, hence deepd3 will not be invoked')
-    # else:
-    #     for fname in nnunetpostprocessedfilenames:
-    #         write_path_deepd3 = deepD3(args.output_path, fname, args.deepd3_model)
-    #         finalcleanDeepD3(write_path_deepd3, final_mask_path)
-    
-    # nnUNETSpineDendriteSoma(nnunetpostprocessedfilename, args.output_path, foldername, model_identifier='3d_fullresSpineDendSoma6x', factor=6, chunk_size=512)
     write_path_nnunetStage2 = nnUNETSpineDendriteSoma(nnunetpostprocessedfilename, args.output_path, foldername, model_identifier='3d_fullres_SpineDend6xZnorm', factor =Zresize_factorStage2, chunk_size=chunkSizeStage2)
-    #write_path_nnunetStage2 = '/home/dhanu/dhanu_work/files/end2end_pipeline/NEST_output/nnUNET_results/SRGAP2BC-scr-2-1-C14-100X_2025-08-04_14.25.26_FusionStitcher/spineDendSegModelResult/modelResults_6x_SRGAP2BC-scr-2-1-C14-100X_2025-08-04_14.25.26_FusionStitcher_projected_final'
     spineMorphologyAnalysis(write_path_nnunetStage2, args.voxelsize)
