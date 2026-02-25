@@ -18,7 +18,11 @@ Steps to get started
    gdown https://drive.google.com/file/d/1nx1HdGCxrj_BNpA-L4Pksss_utIGNud3/view?usp=drive_link -O nnUNet_files/nnUNet_results/Dataset101_BrainCells/nnUNetTrainer__nnUNetPlans__3d_fullres_SpineDend6xZnorm/fold_all/checkpoint_final.pth
    ```
    ```
-   gdown https://drive.google.com/file/d/1iy4lTveAvpyrlBYJHRjIgd9M9BK1U7hW/view?usp=drive_link -O test_files/
+   gdown https://drive.google.com/file/d/1iy4lTveAvpyrlBYJHRjIgd9M9BK1U7hW/view?usp=drive_link -O test_files/test1.ims
    ```
 3. Run the NEST pipeline on the downloaded samples.
+
+   ```
+   python pipeline_script.py -i1 test_files/test1.ims -i2 8 -i3 True -i5 '2'
+   ```
  

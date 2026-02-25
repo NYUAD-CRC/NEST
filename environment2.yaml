@@ -1,0 +1,22 @@
+name: nest
+channels:
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - https://repo.anaconda.com/pkgs/msys2
+dependencies:
+  - gdown
+  - matplotlib-base==3.6.2
+  - python=3.10.16
+  - pytorch==2.5.1
+  - torchvision==0.20.1
+  - trimesh==4.11.1=pyh7b2049a_0
+  - tifffile
+  - nibabel
+  - scipy
+  - h5py
+  - pandas
+  - scikit-image
+  - pip
+  - pip:
+      - -r requirements.txt
