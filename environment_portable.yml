@@ -7,5 +7,5 @@ dependencies:
   - pytorch==2.5.1
   - torchvision==0.20.1
   - trimesh==4.11.1=pyh7b2049a_0
-  - matplotlib-base==3.6
+  - matplotlib-base==3.6.2=py310h945d387_0
 prefix: /home/dj2615/Documents/work/miniconda3/envs/nest
