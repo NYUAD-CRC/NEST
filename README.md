@@ -5,7 +5,7 @@ Neuron Enhancement and Spine Segmentation Toolkit
 Steps to get started
 
 1. Create a conda environment using the below command
-   '''bash
+   '''
    conda env create -f environment_portable.yml
    conda activate nest
    '''
